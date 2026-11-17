@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MatchTriple Pro</string>
+    <string name="tagline">Cocokkan 3 gambar sejenis!</string>
+    <string name="start_play">🎮 Mulai Bermain</string>
+    <string name="settings">⚙️ Pengaturan</string>
+    <string name="how_to_play">❓ Cara Bermain</string>
+    <string name="hi_score">Skor tertinggi:</string>
+    <string name="back">← Kembali</string>
+    <string name="score">⭐ Skor:</string>
+    <string name="level">📊 Level:</string>
+    <string name="undo">Undo</string>
+    <string name="shuffle">Shuffle</string>
+    <string name="hint">Hint</string>
+    <string name="continue_btn">Lanjutkan</string>
+    <string name="quit_menu">Keluar ke Menu</string>
+    <string name="understand">Mengerti</string>
+    <string name="next_level">Lanjut Level</string>
+    <string name="main_menu">Menu Utama</string>
+    <string name="audio_toggle">🔊 Audio Pembaca</string>
+    <string name="dim_toggle">🌙 Mode Redup</string>
+    <string name="volume">🎚️ Volume Suara</string>
+    <string name="timer_toggle">⏱️ Timer Aktif</string>
+</resources>
