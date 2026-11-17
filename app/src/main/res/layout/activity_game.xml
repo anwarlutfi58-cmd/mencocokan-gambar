@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/bg"
+    android:padding="8dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="4dp"
+        android:paddingVertical="6dp">
+
+        <TextView
+            android:id="@+id/txtScore"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_panel"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="8dp"
+            android:text="⭐ Skor: 0"
+            android:textColor="@color/text"
+            android:textSize="13sp"
+            android:textStyle="bold"/>
+
+        <TextView
+            android:id="@+id/txtLevel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_panel"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="8dp"
+            android:text="📊 Level: 1"
+            android:textColor="@color/text"
+            android:textSize="13sp"
+            android:textStyle="bold"/>
+
+        <Space
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:layout_weight="1"/>
+
+        <ImageButton
+            android:id="@+id/btnPause"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:background="?android:attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_pause"
+            android:contentDescription="Pause"/>
+    </LinearLayout>
+
+    <ProgressBar
+        android:id="@+id/progressLevel"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:layout_marginHorizontal="4dp"
+        android:progressTint="@color/primary"
+        android:progressBackgroundTint="@color/slot"/>
+
+    <TextView
+        android:id="@+id/txtTimer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="4dp"
+        android:background="@drawable/bg_panel"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="4dp"
+        android:text="⏱ 120s"
+        android:textColor="@color/danger"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:visibility="gone"/>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvBoard"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_panel"
+        android:padding="10dp"
+        android:clipToPadding="false"/>
+
+    <LinearLayout
+        android:id="@+id/trayContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_panel"
+        android:padding="10dp"
+        android:orientation="horizontal"
+        android:baselineAligned="false"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/btnUndo"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:background="@drawable/bg_booster"
+            android:text="↩️&#10;Undo x3"
+            android:textColor="@color/text"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:stateListAnimator="@null"/>
+
+        <Button
+            android:id="@+id/btnShuffle"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="4dp"
+            android:background="@drawable/bg_booster"
+            android:text="🔀&#10;Shuffle x3"
+            android:textColor="@color/text"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:stateListAnimator="@null"/>
+
+        <Button
+            android:id="@+id/btnHint"
+            android:layout_width="0dp"
+            android:layout_height="64dp"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/bg_booster"
+            android:text="💡&#10;Hint x3"
+            android:textColor="@color/text"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:stateListAnimator="@null"/>
+    </LinearLayout>
+</LinearLayout>
