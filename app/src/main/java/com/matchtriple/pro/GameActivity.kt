@@ -97,7 +97,7 @@ class GameActivity : AppCompatActivity() {
     }
 
     private fun applyTierColor() {
-        val c = resources.getColor(config.tierColorRes, theme)
+        val c = androidx.core.content.ContextCompat.getColor(this, config.tierColorRes)
         b.progressLevel.progressTintList = android.content.res.ColorStateList.valueOf(c)
     }
 
