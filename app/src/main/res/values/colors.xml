@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#E8F0F2</color>
+    <color name="panel">#FFFFFF</color>
+    <color name="primary">#3D7EA6</color>
+    <color name="primary_dark">#2C5F7E</color>
+    <color name="accent">#FFB74D</color>
+    <color name="slot">#DFE8EC</color>
+    <color name="slot_border">#B8C8D0</color>
+    <color name="text">#243B4A</color>
+    <color name="text_soft">#708890</color>
+    <color name="danger">#E57373</color>
+    <color name="tile_bg">#F5F9FB</color>
+    <color name="tile_locked_bg">#C8D2D8</color>
+    <color name="tile_border">#3D7EA6</color>
+    <color name="tier_easy">#4FC3F7</color>
+    <color name="tier_normal">#66BB6A</color>
+    <color name="tier_hard">#FFA726</color>
+    <color name="tier_expert">#AB47BC</color>
+    <color name="tier_master">#C62828</color>
+</resources>
