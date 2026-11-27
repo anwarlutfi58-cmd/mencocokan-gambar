@@ -4,8 +4,7 @@ data class Tile(
     val emoji: String,
     val name: String,
     val id: String = System.nanoTime().toString() + Math.random().toString().takeLast(6),
-    val layer: Int = 0,
-    val row: Int = 0,
-    val col: Int = 0,
+    val pile: Int = 0,
+    val stackBelow: Int = 0,
     var locked: Boolean = false
 )
