@@ -22,7 +22,21 @@
         android:text="@string/tagline"
         android:textColor="@color/text_soft"
         android:layout_marginTop="6dp"
-        android:layout_marginBottom="40dp"/>
+        android:layout_marginBottom="24dp"/>
+
+    <Button
+        android:id="@+id/btnResume"
+        android:layout_width="match_parent"
+        android:layout_height="64dp"
+        android:layout_marginHorizontal="16dp"
+        android:layout_marginBottom="10dp"
+        android:background="@drawable/bg_button_primary"
+        android:text="▶️ Lanjutkan Permainan"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        android:stateListAnimator="@null"/>
 
     <Button
         android:id="@+id/btnStart"
