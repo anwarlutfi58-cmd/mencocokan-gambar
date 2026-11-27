@@ -25,13 +25,35 @@
         android:textSize="15sp"/>
 
     <Button
-        android:id="@+id/btnNextLevel"
+        android:id="@+id/btnContinuePlay"
         android:layout_width="match_parent"
         android:layout_height="52dp"
         android:layout_marginTop="16dp"
         android:background="@drawable/bg_button_primary"
+        android:text="▶️ Lanjutkan Bermain"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:stateListAnimator="@null"/>
+
+    <Button
+        android:id="@+id/btnNextLevel"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_button_primary"
         android:text="@string/next_level"
         android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:stateListAnimator="@null"/>
+
+    <Button
+        android:id="@+id/btnRetry"
+        android:layout_width="match_parent"
+        android:layout_height="52dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/bg_button_secondary"
+        android:text="🔁 Ulangi Level"
+        android:textColor="@color/text"
         android:textStyle="bold"
         android:stateListAnimator="@null"/>
 
