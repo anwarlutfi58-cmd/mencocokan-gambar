@@ -43,7 +43,7 @@ class GameEngine(
             val order = if (round % 2 == 0) 0 until pileCount else (pileCount - 1) downTo 0
             for (p in order) {
                 if (cardIndex >= cards.size) break
-                piles[p].add(cards[cardIndex++].copy(pile = p))
+                piles[p].add(cards[cardIndex++].copy(pile = p, faceUp = false))
             }
             round++
         }
@@ -52,7 +52,8 @@ class GameEngine(
             val stack = piles[p]
             val top = stack.removeAt(stack.lastIndex)
             hidden[p] = stack
-            board.add(top.copy(stackBelow = stack.size, locked = false))
+            // Semua kartu awal TERTUTUP. Tidak ada gambar yang terlihat.
+            board.add(top.copy(stackBelow = stack.size, locked = false, faceUp = false))
         }
     }
 
@@ -65,8 +66,21 @@ class GameEngine(
         }
     }
 
+    fun isFaceUp(idx: Int): Boolean = board.getOrNull(idx)?.faceUp == true
+
+    // Ketuk pertama hanya MEMBUKA kartu, belum mengambil.
+    fun reveal(idx: Int): Tile? {
+        val t = board.getOrNull(idx) ?: return null
+        if (t.faceUp) return null
+        val opened = t.copy(faceUp = true)
+        board[idx] = opened
+        return opened
+    }
+
+    // Ketuk kedua baru MENGAMBIL kartu yang sudah terbuka.
     fun pick(idx: Int): Tile? {
         val top = board.getOrNull(idx) ?: return null
+        if (!top.faceUp) return null
         if (tray.size >= config.traySlots) return null
 
         lastPicked = top
@@ -79,7 +93,8 @@ class GameEngine(
         if (!stack.isNullOrEmpty()) {
             val next = stack.removeAt(stack.lastIndex)
             lastRevealed = next
-            board[idx] = next.copy(stackBelow = stack.size, locked = false)
+            // Kartu berikutnya muncul dalam keadaan TERTUTUP lagi.
+            board[idx] = next.copy(stackBelow = stack.size, locked = false, faceUp = false)
         } else {
             board[idx] = null
         }
@@ -125,10 +140,10 @@ class GameEngine(
         val revealed = lastRevealed
         if (revealed != null) {
             val stack = hidden.getOrPut(p) { mutableListOf() }
-            stack.add(revealed)
+            stack.add(revealed.copy(faceUp = false))
         }
 
-        board[p] = picked.copy(stackBelow = hidden[p]?.size ?: 0, locked = false)
+        board[p] = picked.copy(stackBelow = hidden[p]?.size ?: 0, locked = false, faceUp = false)
 
         lastPicked = null
         lastPile = -1
@@ -155,20 +170,21 @@ class GameEngine(
                 continue
             }
             val stack = mutableListOf<Tile>()
-            repeat(size) { stack.add(all[i++].copy(pile = p)) }
+            repeat(size) { stack.add(all[i++].copy(pile = p, faceUp = false)) }
             val top = stack.removeAt(stack.lastIndex)
             hidden[p] = stack
-            board[p] = top.copy(stackBelow = stack.size, locked = false)
+            board[p] = top.copy(stackBelow = stack.size, locked = false, faceUp = false)
         }
     }
 
-    fun findHint(): String? {
-        val visibleCounts = board.filterNotNull().groupingBy { it.emoji }.eachCount()
-        val trayCounts = tray.groupingBy { it.emoji }.eachCount()
-        for ((emoji, cnt) in visibleCounts) {
-            val have = trayCounts[emoji] ?: 0
-            if (cnt + have >= 3) return emoji
-        }
-        return null
+    // Hint hanya membuka satu kartu tertutup, tidak memberi tahu nama buah.
+    fun hintReveal(): Int {
+        val candidates = board.indices.filter { board[it] != null && board[it]?.faceUp == false }
+        if (candidates.isEmpty()) return -1
+        val idx = candidates.random()
+        reveal(idx)
+        return idx
     }
+
+    fun findHint(): String? = null
 }
