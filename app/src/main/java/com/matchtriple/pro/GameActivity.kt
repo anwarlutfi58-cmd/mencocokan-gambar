@@ -198,7 +198,6 @@ class GameActivity : AppCompatActivity() {
         if (busy) return
         val tile = engine.board.getOrNull(idx) ?: return
 
-        // Kalau kartu sudah terbuka, ketuk lagi untuk mengambilnya.
         if (tile.faceUp) {
             takeCard(idx)
             return
@@ -206,7 +205,6 @@ class GameActivity : AppCompatActivity() {
 
         val first = engine.firstOpenIdx
 
-        // Belum ada kartu terbuka: buka kartu ini saja.
         if (first == -1) {
             val opened = engine.reveal(idx) ?: return
             vibrate(15)
@@ -215,7 +213,6 @@ class GameActivity : AppCompatActivity() {
             return
         }
 
-        // Sudah ada satu kartu terbuka: buka kartu kedua lalu bandingkan.
         if (idx == first) return
 
         val second = engine.reveal(idx) ?: return
@@ -226,7 +223,6 @@ class GameActivity : AppCompatActivity() {
         val secondEmoji = second.emoji
 
         if (firstEmoji == secondEmoji) {
-            // Cocok berdua: langsung ambil keduanya.
             busy = true
             handler.postDelayed({
                 engine.pick(first)
@@ -234,7 +230,6 @@ class GameActivity : AppCompatActivity() {
                 afterTake()
             }, 250)
         } else {
-            // Tidak cocok: perlihatkan sebentar, lalu tutup otomatis.
             busy = true
             speech.speak("Tidak cocok")
             handler.postDelayed({
@@ -280,4 +275,282 @@ class GameActivity : AppCompatActivity() {
             }
 
             adapter.notifyDataSetChanged()
-            rebuildTray
+            rebuildTray()
+            updateHUD()
+            saveProgress()
+
+            busy = false
+            afterMove()
+        }, 180)
+    }
+
+    private fun afterMove() {
+        engine.recomputeLocks()
+        adapter.notifyDataSetChanged()
+        updateHUD()
+
+        if (engine.isWin()) {
+            winLevel()
+            return
+        }
+
+        if (engine.isLose()) {
+            gameOver("Kotak penampung penuh!")
+            return
+        }
+    }
+
+    private fun winLevel() {
+        timerRunning = false
+        handler.removeCallbacks(timerRunnable)
+
+        val bonus = 100 * config.scoreMultiplier + timeLeft * 2
+        score += bonus
+        saveHi()
+        saveProgress()
+
+        val view = layoutInflater.inflate(R.layout.dialog_result, null)
+
+        view.findViewById<TextView>(R.id.resTitle).text = "🎉 Level Selesai!"
+        view.findViewById<TextView>(R.id.resText).text =
+            "Skor: $score\nBonus +$bonus\nSisa waktu ikut jadi bonus."
+
+        val btnContinue = view.findViewById<Button>(R.id.btnContinuePlay)
+        val btnNext = view.findViewById<Button>(R.id.btnNextLevel)
+        val btnRetry = view.findViewById<Button>(R.id.btnRetry)
+        val btnMenu = view.findViewById<Button>(R.id.btnBackMenu)
+
+        btnContinue.visibility = View.GONE
+        btnRetry.visibility = View.GONE
+        btnNext.visibility = View.VISIBLE
+        btnNext.text = "▶️ Lanjutkan Bermain"
+
+        val dlg = AlertDialog.Builder(this)
+            .setView(view)
+            .setCancelable(false)
+            .create()
+
+        resultDialog = dlg
+
+        btnNext.setOnClickListener {
+            dlg.dismiss()
+            resultDialog = null
+            startLevel(level + 1)
+        }
+
+        btnMenu.setOnClickListener {
+            dlg.dismiss()
+            resultDialog = null
+            saveProgress()
+            finish()
+        }
+
+        dlg.show()
+        speech.speak("Selamat! Level selesai. Tekan lanjutkan bermain.")
+    }
+
+    private fun gameOver(reason: String) {
+        timerRunning = false
+        handler.removeCallbacks(timerRunnable)
+        saveHi()
+        saveProgress()
+
+        val view = layoutInflater.inflate(R.layout.dialog_result, null)
+
+        view.findViewById<TextView>(R.id.resTitle).text = "😢 Game Over"
+        view.findViewById<TextView>(R.id.resText).text = "$reason\nSkor akhir: $score"
+
+        val btnContinue = view.findViewById<Button>(R.id.btnContinuePlay)
+        val btnNext = view.findViewById<Button>(R.id.btnNextLevel)
+        val btnRetry = view.findViewById<Button>(R.id.btnRetry)
+        val btnMenu = view.findViewById<Button>(R.id.btnBackMenu)
+
+        btnNext.visibility = View.GONE
+        btnRetry.visibility = View.VISIBLE
+        btnContinue.visibility = if (!continueUsed) View.VISIBLE else View.GONE
+
+        val dlg = AlertDialog.Builder(this)
+            .setView(view)
+            .setCancelable(false)
+            .create()
+
+        resultDialog = dlg
+
+        btnContinue.setOnClickListener {
+            continueUsed = true
+            dlg.dismiss()
+            resultDialog = null
+            continueAfterLose()
+        }
+
+        btnRetry.setOnClickListener {
+            dlg.dismiss()
+            resultDialog = null
+            startLevel(level)
+        }
+
+        btnMenu.setOnClickListener {
+            dlg.dismiss()
+            resultDialog = null
+            saveProgress()
+            finish()
+        }
+
+        dlg.show()
+        vibrate(300)
+        speech.speak("Game over. Bisa lanjutkan bermain sekali, atau ulangi level.")
+    }
+
+    private fun continueAfterLose() {
+        engine.tray.clear()
+        engine.closeAllOpen()
+        engine.shuffle()
+
+        boosters[0] = maxOf(boosters[0], 1)
+        boosters[1] = maxOf(boosters[1], 1)
+        boosters[2] = maxOf(boosters[2], 1)
+
+        rebuildTray()
+        updateBoosters()
+        adapter.notifyDataSetChanged()
+        updateHUD()
+
+        timeLeft = maxOf(timeLeft, 45)
+        b.txtTimer.visibility = View.VISIBLE
+        b.txtTimer.text = "⏱ ${timeLeft}s"
+        timerRunning = true
+        handler.postDelayed(timerRunnable, 1000)
+
+        saveProgress()
+        vibrate(40)
+        speech.speak("Lanjutkan bermain. Penampung dikosongkan dan waktu ditambah.")
+    }
+
+    private fun saveHi() {
+        val hi = prefs.getInt("hiScore", 0)
+        if (score > hi) prefs.edit().putInt("hiScore", score).apply()
+    }
+
+    private fun useUndo() {
+        if (busy || boosters[0] <= 0) return
+
+        if (engine.undo()) {
+            boosters[0]--
+            updateBoosters()
+            adapter.notifyDataSetChanged()
+            rebuildTray()
+            updateHUD()
+            saveProgress()
+            vibrate(20)
+            speech.speak("Undo berhasil")
+        } else {
+            speech.speak("Tidak bisa di-undo")
+        }
+    }
+
+    private fun useShuffle() {
+        if (busy || boosters[1] <= 0) return
+
+        engine.shuffle()
+        boosters[1]--
+
+        updateBoosters()
+        adapter.notifyDataSetChanged()
+        saveProgress()
+        vibrate(20)
+        speech.speak("Papan diacak dan ditutup lagi")
+    }
+
+    private fun useHint() {
+        if (busy || boosters[2] <= 0) return
+
+        val idx = engine.hintReveal()
+        if (idx < 0) {
+            speech.speak("Tidak ada kartu tertutup. Coba shuffle.")
+            return
+        }
+
+        boosters[2]--
+        updateBoosters()
+        adapter.notifyItemChanged(idx)
+        speech.speak("Satu kartu dibuka")
+
+        val vh = b.rvBoard.findViewHolderForAdapterPosition(idx)
+        if (vh != null) {
+            val v = vh.itemView
+            v.animate()
+                .scaleX(1.15f)
+                .scaleY(1.15f)
+                .setDuration(200)
+                .withEndAction {
+                    v.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(200)
+                        .start()
+                }
+                .start()
+        }
+    }
+
+    private fun showSettings() {
+        val view = layoutInflater.inflate(R.layout.dialog_settings, null)
+
+        val swAudio = view.findViewById<android.widget.Switch>(R.id.swAudio)
+        val swDim = view.findViewById<android.widget.Switch>(R.id.swDim)
+        val swTimer = view.findViewById<android.widget.Switch>(R.id.swTimer)
+        val seek = view.findViewById<android.widget.SeekBar>(R.id.seekVolume)
+
+        swAudio.isChecked = prefs.getBoolean("audioOn", true)
+        swDim.isChecked = prefs.getBoolean("dim", false)
+        swTimer.isChecked = true
+        seek.progress = (prefs.getFloat("volume", 0.8f) * 100).toInt()
+
+        val dlg = AlertDialog.Builder(this).setView(view).create()
+
+        view.findViewById<Button>(R.id.btnContinueSettings).setOnClickListener {
+            prefs.edit()
+                .putBoolean("audioOn", swAudio.isChecked)
+                .putBoolean("dim", swDim.isChecked)
+                .putFloat("volume", seek.progress / 100f)
+                .apply()
+
+            speech.enabled = swAudio.isChecked
+            speech.volume = seek.progress / 100f
+
+            dlg.dismiss()
+        }
+
+        view.findViewById<Button>(R.id.btnQuitSettings).setOnClickListener {
+            dlg.dismiss()
+            saveProgress()
+            finish()
+        }
+
+        dlg.show()
+    }
+
+    private fun vibrate(ms: Long) {
+        if (Build.VERSION.SDK_INT >= 26) {
+            vibrator.vibrate(
+                VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE)
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(ms)
+        }
+    }
+
+    override fun onPause() {
+        super.onPause()
+        saveProgress()
+    }
+
+    override fun onDestroy() {
+        handler.removeCallbacksAndMessages(null)
+        resultDialog?.dismiss()
+        resultDialog = null
+        speech.shutdown()
+        super.onDestroy()
+    }
+}
