@@ -21,7 +21,7 @@
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="1. Ketuk ubin gambar yang paling atas.&#10;2. Ubin masuk ke kotak penampung.&#10;3. Jika 3 gambar sama terkumpul, otomatis hilang dan skor bertambah.&#10;4. Kalau slot penampung penuh tanpa 3 kembar, game over.&#10;&#10;🔒 Ubin redup berarti masih tertutup tumpukan. Ambil ubin di atasnya dulu.&#10;&#10;Versi ini memakai papan lebih padat: mulai 36 ubin, lalu naik sampai ratusan ubin. Ada 600 ikon total, jadi gambar lebih melimpah dan tantangannya lebih berat.&#10;&#10;Bantuan:&#10;↩️ Undo — kembalikan ubin terakhir&#10;🔀 Shuffle — acak ulang sisa papan&#10;💡 Hint — beri petunjuk gambar yang bisa dicari"
+            android:text="1. Di papan hanya terlihat kartu paling atas dari setiap tumpukan.&#10;2. Kartu di bawahnya TERSEMBUNYI, seperti main kartu. Tidak bisa dilihat sebelum dibuka.&#10;3. Ketuk kartu atas untuk memasukkannya ke kotak penampung. Setelah itu kartu berikutnya baru terbuka.&#10;4. Angka 🂠 di pojok kartu menunjukkan jumlah kartu yang masih tersembunyi di bawahnya.&#10;5. Kumpulkan 3 gambar sama agar hilang dan menambah skor.&#10;6. Kalau slot penampung penuh tanpa 3 kembar, game over.&#10;&#10;Bantuan:&#10;↩️ Undo — kembalikan kartu terakhir dan tutup lagi tumpukannya&#10;🔀 Shuffle — acak ulang semua kartu termasuk yang tersembunyi&#10;💡 Hint — petunjuk dari kartu yang sedang terlihat"
             android:textColor="@color/text"
             android:lineSpacingMultiplier="1.3"/>
 
