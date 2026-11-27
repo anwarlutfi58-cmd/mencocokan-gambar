@@ -24,12 +24,36 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.hiScoreMain).text = prefs.getInt("hiScore", 0).toString()
 
+        val btnResume = findViewById<Button>(R.id.btnResume)
+        val hasSave = prefs.getBoolean("hasSavedGame", false)
+        btnResume.visibility = if (hasSave) android.view.View.VISIBLE else android.view.View.GONE
+
+        btnResume.setOnClickListener {
+            val theme = prefs.getString("savedTheme", "fruit") ?: "fruit"
+            val level = prefs.getInt("savedLevel", 1)
+            val score = prefs.getInt("savedScore", 0)
+            startActivity(
+                Intent(this, GameActivity::class.java)
+                    .putExtra("theme", theme)
+                    .putExtra("resumeLevel", level)
+                    .putExtra("resumeScore", score)
+            )
+        }
+
         findViewById<Button>(R.id.btnStart).setOnClickListener {
             speech.speak("Pilih kategori")
             showCategoryDialog()
         }
         findViewById<Button>(R.id.btnSettings).setOnClickListener { showSettings() }
         findViewById<Button>(R.id.btnHelp).setOnClickListener { showHelp() }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        findViewById<TextView>(R.id.hiScoreMain).text = prefs.getInt("hiScore", 0).toString()
+        val hasSave = prefs.getBoolean("hasSavedGame", false)
+        findViewById<Button>(R.id.btnResume).visibility =
+            if (hasSave) android.view.View.VISIBLE else android.view.View.GONE
     }
 
     private fun showCategoryDialog() {
@@ -54,6 +78,7 @@ class MainActivity : AppCompatActivity() {
                     5 -> "travel"
                     else -> "all"
                 }
+                prefs.edit().putBoolean("hasSavedGame", false).apply()
                 startActivity(Intent(this, GameActivity::class.java).putExtra("theme", theme))
             }
             .show()
@@ -68,7 +93,7 @@ class MainActivity : AppCompatActivity() {
 
         swAudio.isChecked = prefs.getBoolean("audioOn", true)
         swDim.isChecked = prefs.getBoolean("dim", false)
-        swTimer.isChecked = prefs.getBoolean("timerOn", false)
+        swTimer.isChecked = prefs.getBoolean("timerOn", true)
         seek.progress = (prefs.getFloat("volume", 0.8f) * 100).toInt()
 
         val dlg = AlertDialog.Builder(this).setView(view).create()
