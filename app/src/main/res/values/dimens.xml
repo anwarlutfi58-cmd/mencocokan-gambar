@@ -4,6 +4,6 @@
     <dimen name="pad_sm">8dp</dimen>
     <dimen name="radius">16dp</dimen>
     <dimen name="radius_sm">10dp</dimen>
-    <dimen name="tile_text">28sp</dimen>
+    <dimen name="tile_text">22sp</dimen>
     <dimen name="slot_text">22sp</dimen>
 </resources>
