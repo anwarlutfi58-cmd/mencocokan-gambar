@@ -17,6 +17,7 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
         prefs = getSharedPreferences("matchTriplePro", MODE_PRIVATE)
         speech = SpeechHelper(this)
         speech.enabled = prefs.getBoolean("audioOn", true)
@@ -28,17 +29,35 @@ class MainActivity : AppCompatActivity() {
             speech.speak("Pilih kategori")
             showCategoryDialog()
         }
+
         findViewById<Button>(R.id.btnSettings).setOnClickListener { showSettings() }
         findViewById<Button>(R.id.btnHelp).setOnClickListener { showHelp() }
     }
 
     private fun showCategoryDialog() {
-        val cats = arrayOf("🍎 Buah-Buahan", "🐱 Hewan Lucu", "🌹 Bunga Indah")
+        val cats = arrayOf(
+            "🍎 Buah & Makanan — 150 ikon",
+            "🐱 Hewan & Alam — 150 ikon",
+            "🌈 Bunga & Warna — 150 ikon",
+            "🧰 Objek & Simbol — 150 ikon",
+            "🎲 Campur Semua — 600 ikon"
+        )
+
         AlertDialog.Builder(this)
             .setTitle("Pilih Kategori")
             .setItems(cats) { _, which ->
-                val theme = when (which) { 0 -> "fruit"; 1 -> "animal"; else -> "flower" }
-                startActivity(Intent(this, GameActivity::class.java).putExtra("theme", theme))
+                val theme = when (which) {
+                    0 -> "fruit"
+                    1 -> "animal"
+                    2 -> "flower"
+                    3 -> "mixed"
+                    else -> "all"
+                }
+
+                startActivity(
+                    Intent(this, GameActivity::class.java)
+                        .putExtra("theme", theme)
+                )
             }
             .show()
     }
@@ -56,6 +75,7 @@ class MainActivity : AppCompatActivity() {
         seek.progress = (prefs.getFloat("volume", 0.8f) * 100).toInt()
 
         val dlg = AlertDialog.Builder(this).setView(view).create()
+
         view.findViewById<Button>(R.id.btnContinueSettings).setOnClickListener {
             prefs.edit()
                 .putBoolean("audioOn", swAudio.isChecked)
@@ -63,17 +83,27 @@ class MainActivity : AppCompatActivity() {
                 .putBoolean("timerOn", swTimer.isChecked)
                 .putFloat("volume", seek.progress / 100f)
                 .apply()
+
             speech.enabled = swAudio.isChecked
+            speech.volume = seek.progress / 100f
             dlg.dismiss()
         }
-        view.findViewById<Button>(R.id.btnQuitSettings).setOnClickListener { dlg.dismiss() }
+
+        view.findViewById<Button>(R.id.btnQuitSettings).setOnClickListener {
+            dlg.dismiss()
+        }
+
         dlg.show()
     }
 
     private fun showHelp() {
         val view = layoutInflater.inflate(R.layout.dialog_help, null)
         val dlg = AlertDialog.Builder(this).setView(view).create()
-        view.findViewById<Button>(R.id.btnUnderstand).setOnClickListener { dlg.dismiss() }
+
+        view.findViewById<Button>(R.id.btnUnderstand).setOnClickListener {
+            dlg.dismiss()
+        }
+
         dlg.show()
     }
 
