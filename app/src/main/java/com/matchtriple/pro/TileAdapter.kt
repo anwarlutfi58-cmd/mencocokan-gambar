@@ -32,6 +32,7 @@ class TileAdapter(
             tv.text = ""
             tv.background = null
             tv.setOnClickListener(null)
+            tv.isClickable = false
             tv.alpha = 0f
             badge.visibility = View.GONE
             holder.itemView.elevation = 0f
@@ -39,15 +40,25 @@ class TileAdapter(
         }
 
         tv.alpha = 1f
-        tv.text = tile.emoji
-        tv.background = holder.itemView.context.getDrawable(R.drawable.bg_tile)
-        tv.setTextColor(Color.BLACK)
         tv.setOnClickListener { onClick(position) }
-        holder.itemView.elevation = if (tile.stackBelow > 0) 8f else 2f
+
+        if (tile.faceUp) {
+            // Sudah dibuka: baru terlihat gambarnya.
+            tv.text = tile.emoji
+            tv.background = holder.itemView.context.getDrawable(R.drawable.bg_tile)
+            tv.setTextColor(Color.BLACK)
+            holder.itemView.elevation = 6f
+        } else {
+            // Masih tertutup: hanya punggung kartu, tidak ada gambar/nama.
+            tv.text = "❓"
+            tv.background = holder.itemView.context.getDrawable(R.drawable.bg_tile_locked)
+            tv.setTextColor(Color.parseColor("#243B4A"))
+            holder.itemView.elevation = if (tile.stackBelow > 0) 8f else 3f
+        }
 
         if (tile.stackBelow > 0) {
             badge.visibility = View.VISIBLE
-            badge.text = "🂠 ${tile.stackBelow}"
+            badge.text = "+${tile.stackBelow}"
         } else {
             badge.visibility = View.GONE
         }
