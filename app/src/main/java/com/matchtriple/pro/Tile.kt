@@ -5,5 +5,7 @@ data class Tile(
     val name: String,
     val id: String = System.nanoTime().toString() + Math.random().toString().takeLast(6),
     val layer: Int = 0,
+    val row: Int = 0,
+    val col: Int = 0,
     var locked: Boolean = false
 )
