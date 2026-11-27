@@ -34,6 +34,8 @@ class GameActivity : AppCompatActivity() {
     private var busy = false
     private var timerRunning = false
     private var timeLeft = 0
+    private var resultDialog: AlertDialog? = null
+    private var continueUsed = false
 
     private val handler = Handler(Looper.getMainLooper())
 
@@ -78,8 +80,11 @@ class GameActivity : AppCompatActivity() {
 
     private fun startLevel(lvl: Int) {
         handler.removeCallbacks(timerRunnable)
+        resultDialog?.dismiss()
+        resultDialog = null
 
         level = lvl
+        continueUsed = false
         config = LevelConfigs.forLevel(level)
         engine = GameEngine(theme, config)
         engine.generate()
@@ -242,23 +247,37 @@ class GameActivity : AppCompatActivity() {
         view.findViewById<TextView>(R.id.resText).text =
             "Skor: $score\nBonus +$bonus\nLevel berikutnya lebih banyak tumpukan."
 
+        val btnContinue = view.findViewById<Button>(R.id.btnContinuePlay)
+        val btnNext = view.findViewById<Button>(R.id.btnNextLevel)
+        val btnRetry = view.findViewById<Button>(R.id.btnRetry)
+        val btnMenu = view.findViewById<Button>(R.id.btnBackMenu)
+
+        btnContinue.visibility = View.GONE
+        btnRetry.visibility = View.GONE
+        btnNext.visibility = View.VISIBLE
+        btnNext.text = "▶️ Lanjutkan Bermain"
+
         val dlg = AlertDialog.Builder(this)
             .setView(view)
             .setCancelable(false)
             .create()
 
-        view.findViewById<Button>(R.id.btnNextLevel).setOnClickListener {
+        resultDialog = dlg
+
+        btnNext.setOnClickListener {
             dlg.dismiss()
+            resultDialog = null
             startLevel(level + 1)
         }
 
-        view.findViewById<Button>(R.id.btnBackMenu).setOnClickListener {
+        btnMenu.setOnClickListener {
             dlg.dismiss()
+            resultDialog = null
             finish()
         }
 
         dlg.show()
-        speech.speak("Selamat! Level selesai. Skor $score")
+        speech.speak("Selamat! Level selesai. Tekan lanjutkan bermain untuk level berikutnya.")
     }
 
     private fun gameOver(reason: String) {
@@ -270,21 +289,71 @@ class GameActivity : AppCompatActivity() {
 
         view.findViewById<TextView>(R.id.resTitle).text = "😢 Game Over"
         view.findViewById<TextView>(R.id.resText).text = "$reason\nSkor akhir: $score"
-        view.findViewById<Button>(R.id.btnNextLevel).visibility = View.GONE
+
+        val btnContinue = view.findViewById<Button>(R.id.btnContinuePlay)
+        val btnNext = view.findViewById<Button>(R.id.btnNextLevel)
+        val btnRetry = view.findViewById<Button>(R.id.btnRetry)
+        val btnMenu = view.findViewById<Button>(R.id.btnBackMenu)
+
+        btnNext.visibility = View.GONE
+        btnRetry.visibility = View.VISIBLE
+        btnContinue.visibility = if (!continueUsed) View.VISIBLE else View.GONE
 
         val dlg = AlertDialog.Builder(this)
             .setView(view)
             .setCancelable(false)
             .create()
 
-        view.findViewById<Button>(R.id.btnBackMenu).setOnClickListener {
+        resultDialog = dlg
+
+        btnContinue.setOnClickListener {
+            continueUsed = true
             dlg.dismiss()
+            resultDialog = null
+            continueAfterLose()
+        }
+
+        btnRetry.setOnClickListener {
+            dlg.dismiss()
+            resultDialog = null
+            startLevel(level)
+        }
+
+        btnMenu.setOnClickListener {
+            dlg.dismiss()
+            resultDialog = null
             finish()
         }
 
         dlg.show()
         vibrate(300)
-        speech.speak("Game over. Skor akhir $score")
+        speech.speak("Game over. Kamu bisa tekan lanjutkan bermain sekali, atau ulangi level.")
+    }
+
+    private fun continueAfterLose() {
+        // Buang isi penampung supaya pemain bisa lanjut, lalu acak ulang papan.
+        engine.tray.clear()
+        engine.shuffle()
+
+        boosters[0] = maxOf(boosters[0], 1)
+        boosters[1] = maxOf(boosters[1], 1)
+        boosters[2] = maxOf(boosters[2], 1)
+
+        rebuildTray()
+        updateBoosters()
+        adapter.notifyDataSetChanged()
+        updateHUD()
+
+        if (config.timeLimitSec > 0 && prefs.getBoolean("timerOn", false)) {
+            timeLeft = maxOf(timeLeft, 30)
+            b.txtTimer.visibility = View.VISIBLE
+            b.txtTimer.text = "⏱ ${timeLeft}s"
+            timerRunning = true
+            handler.postDelayed(timerRunnable, 1000)
+        }
+
+        vibrate(40)
+        speech.speak("Lanjutkan bermain. Penampung dikosongkan dan papan diacak.")
     }
 
     private fun saveHi() {
@@ -408,6 +477,8 @@ class GameActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
+        resultDialog?.dismiss()
+        resultDialog = null
         speech.shutdown()
         super.onDestroy()
     }
