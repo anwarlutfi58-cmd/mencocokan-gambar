@@ -15,6 +15,9 @@ class GameEngine(
     private var lastPile: Int = -1
     private var lastRevealed: Tile? = null
 
+    var firstOpenIdx: Int = -1
+        private set
+
     fun generate() {
         board.clear()
         tray.clear()
@@ -22,6 +25,7 @@ class GameEngine(
         lastPicked = null
         lastPile = -1
         lastRevealed = null
+        firstOpenIdx = -1
 
         val catalog = ThemeData.get(theme).shuffled(Random(System.currentTimeMillis()))
         val triplesCount = (config.totalTiles / 3).coerceAtLeast(1)
@@ -52,7 +56,6 @@ class GameEngine(
             val stack = piles[p]
             val top = stack.removeAt(stack.lastIndex)
             hidden[p] = stack
-            // Semua kartu awal TERTUTUP. Tidak ada gambar yang terlihat.
             board.add(top.copy(stackBelow = stack.size, locked = false, faceUp = false))
         }
     }
@@ -68,16 +71,30 @@ class GameEngine(
 
     fun isFaceUp(idx: Int): Boolean = board.getOrNull(idx)?.faceUp == true
 
-    // Ketuk pertama hanya MEMBUKA kartu, belum mengambil.
     fun reveal(idx: Int): Tile? {
         val t = board.getOrNull(idx) ?: return null
         if (t.faceUp) return null
         val opened = t.copy(faceUp = true)
         board[idx] = opened
+        if (firstOpenIdx == -1) firstOpenIdx = idx
         return opened
     }
 
-    // Ketuk kedua baru MENGAMBIL kartu yang sudah terbuka.
+    fun closeCard(idx: Int) {
+        val t = board.getOrNull(idx) ?: return
+        board[idx] = t.copy(faceUp = false)
+        if (firstOpenIdx == idx) firstOpenIdx = -1
+    }
+
+    fun closeAllOpen() {
+        board.forEachIndexed { idx, t ->
+            if (t != null && t.faceUp) board[idx] = t.copy(faceUp = false)
+        }
+        firstOpenIdx = -1
+    }
+
+    fun emojiAt(idx: Int): String? = board.getOrNull(idx)?.emoji
+
     fun pick(idx: Int): Tile? {
         val top = board.getOrNull(idx) ?: return null
         if (!top.faceUp) return null
@@ -93,12 +110,12 @@ class GameEngine(
         if (!stack.isNullOrEmpty()) {
             val next = stack.removeAt(stack.lastIndex)
             lastRevealed = next
-            // Kartu berikutnya muncul dalam keadaan TERTUTUP lagi.
             board[idx] = next.copy(stackBelow = stack.size, locked = false, faceUp = false)
         } else {
             board[idx] = null
         }
 
+        if (firstOpenIdx == idx) firstOpenIdx = -1
         return top
     }
 
@@ -162,6 +179,7 @@ class GameEngine(
         }
 
         hidden.clear()
+        firstOpenIdx = -1
         var i = 0
         for (p in oldSizes.indices) {
             val size = oldSizes[p]
@@ -177,7 +195,6 @@ class GameEngine(
         }
     }
 
-    // Hint hanya membuka satu kartu tertutup, tidak memberi tahu nama buah.
     fun hintReveal(): Int {
         val candidates = board.indices.filter { board[it] != null && board[it]?.faceUp == false }
         if (candidates.isEmpty()) return -1
