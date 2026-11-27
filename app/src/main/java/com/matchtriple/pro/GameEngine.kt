@@ -9,114 +9,82 @@ class GameEngine(
 ) {
     val board = mutableListOf<Tile?>()
     val tray = mutableListOf<Tile>()
-    var lastMove: Pair<Tile, Int>? = null
+
+    private val hidden = HashMap<Int, MutableList<Tile>>()
+    private var lastPicked: Tile? = null
+    private var lastPile: Int = -1
+    private var lastRevealed: Tile? = null
 
     fun generate() {
         board.clear()
         tray.clear()
-        lastMove = null
+        hidden.clear()
+        lastPicked = null
+        lastPile = -1
+        lastRevealed = null
 
         val catalog = ThemeData.get(theme).shuffled(Random(System.currentTimeMillis()))
         val triplesCount = (config.totalTiles / 3).coerceAtLeast(1)
-
         val usedTypes = mutableListOf<ThemeItem>()
-        while (usedTypes.size < triplesCount) {
-            usedTypes.addAll(catalog.shuffled())
-        }
+        while (usedTypes.size < triplesCount) usedTypes.addAll(catalog.shuffled())
 
-        val raw = mutableListOf<Tile>()
+        val cards = mutableListOf<Tile>()
         for (type in usedTypes.take(triplesCount)) {
-            repeat(3) {
-                raw.add(Tile(type.emoji, type.name))
-            }
+            repeat(3) { cards.add(Tile(type.emoji, type.name)) }
         }
-        raw.shuffle(Random(System.currentTimeMillis() + 11))
+        cards.shuffle(Random(System.currentTimeMillis() + 11))
 
-        val rows = ceil(config.totalTiles.toDouble() / config.cols.toDouble()).toInt().coerceAtLeast(1)
-        val positions = mutableListOf<Pair<Int, Int>>()
+        val pileCount = ceil(config.totalTiles.toDouble() / config.layers.toDouble()).toInt().coerceAtLeast(1)
+        val piles = MutableList(pileCount) { mutableListOf<Tile>() }
 
-        for (r in 0 until rows) {
-            for (c in 0 until config.cols) {
-                if (positions.size < config.totalTiles) {
-                    positions.add(r to c)
-                }
+        var cardIndex = 0
+        var round = 0
+        while (cardIndex < cards.size) {
+            val order = if (round % 2 == 0) 0 until pileCount else (pileCount - 1) downTo 0
+            for (p in order) {
+                if (cardIndex >= cards.size) break
+                piles[p].add(cards[cardIndex++].copy(pile = p))
             }
-        }
-
-        val cells = positions.size.coerceAtLeast(1)
-        val orderedPositions = positions.shuffled(Random(System.currentTimeMillis() + 7))
-        val stacks = MutableList(cells) { mutableListOf<Tile>() }
-
-        var tileIndex = 0
-        var layer = 0
-
-        while (tileIndex < raw.size) {
-            val cellOrder = if (layer % 2 == 0) 0 until cells else (cells - 1) downTo 0
-
-            for (cell in cellOrder) {
-                if (tileIndex >= raw.size) break
-
-                val pos = orderedPositions[cell]
-                val tile = raw[tileIndex++]
-
-                stacks[cell].add(
-                    tile.copy(
-                        row = pos.first,
-                        col = pos.second,
-                        layer = layer,
-                        locked = false
-                    )
-                )
-            }
-
-            layer++
+            round++
         }
 
-        val maxLayer = stacks.maxOfOrNull { it.size } ?: 0
-
-        for (l in (maxLayer - 1) downTo 0) {
-            for (cell in 0 until cells) {
-                val t = stacks[cell].getOrNull(l)
-                if (t != null) board.add(t)
-            }
+        for (p in 0 until pileCount) {
+            val stack = piles[p]
+            val top = stack.removeAt(stack.lastIndex)
+            hidden[p] = stack
+            board.add(top.copy(stackBelow = stack.size, locked = false))
         }
-
-        recomputeLocks()
     }
 
     fun recomputeLocks() {
-        val highestLayer = HashMap<String, Int>()
-
-        board.forEach { t ->
-            if (t != null) {
-                val key = "${t.row}:${t.col}"
-                highestLayer[key] = maxOf(highestLayer[key] ?: 0, t.layer)
-            }
-        }
-
         board.forEachIndexed { idx, t ->
-            if (t == null) return@forEachIndexed
-
-            val key = "${t.row}:${t.col}"
-            val newLocked = t.layer < (highestLayer[key] ?: t.layer)
-
-            if (newLocked != t.locked) {
-                board[idx] = t.copy(locked = newLocked)
+            if (t != null) {
+                val below = hidden[idx]?.size ?: 0
+                board[idx] = t.copy(stackBelow = below, locked = false)
             }
         }
     }
 
     fun pick(idx: Int): Tile? {
-        val t = board.getOrNull(idx) ?: return null
-        if (t.locked) return null
+        val top = board.getOrNull(idx) ?: return null
         if (tray.size >= config.traySlots) return null
 
-        board[idx] = null
-        tray.add(t)
-        lastMove = Pair(t, idx)
-        recomputeLocks()
+        lastPicked = top
+        lastPile = idx
+        lastRevealed = null
 
-        return t
+        tray.add(top)
+
+        val stack = hidden[idx]
+        if (!stack.isNullOrEmpty()) {
+            val next = stack.removeAt(stack.lastIndex)
+            lastRevealed = next
+            board[idx] = next.copy(stackBelow = stack.size, locked = false)
+        } else {
+            board[idx] = null
+        }
+
+        return top
     }
 
     fun checkMatch(): Tile? {
@@ -125,75 +93,82 @@ class GameEngine(
 
         var removed = 0
         val newTray = mutableListOf<Tile>()
-
         for (t in tray) {
-            if (t.emoji == matched && removed < 3) {
-                removed++
-            } else {
-                newTray.add(t)
-            }
+            if (t.emoji == matched && removed < 3) removed++ else newTray.add(t)
         }
-
         tray.clear()
         tray.addAll(newTray)
 
-        return Tile(
-            matched,
-            ThemeData.get(theme).firstOrNull { it.emoji == matched }?.name ?: "",
-            layer = 0
-        )
+        return Tile(matched, ThemeData.get(theme).firstOrNull { it.emoji == matched }?.name ?: "")
     }
 
-    fun hasMatch(): Boolean {
-        return tray.groupingBy { it.emoji }.eachCount().values.any { it >= 3 }
-    }
+    fun hasMatch(): Boolean = tray.groupingBy { it.emoji }.eachCount().values.any { it >= 3 }
 
-    fun remaining(): Int = board.count { it != null }
+    fun remaining(): Int {
+        val visible = board.count { it != null }
+        val below = hidden.values.sumOf { it.size }
+        return visible + below
+    }
 
     fun isWin(): Boolean = remaining() == 0 && tray.isEmpty()
-
     fun isLose(): Boolean = tray.size >= config.traySlots && !hasMatch()
 
     fun undo(): Boolean {
-        val lm = lastMove ?: return false
-        val idxInTray = tray.indexOfFirst { it.id == lm.first.id }
+        val picked = lastPicked ?: return false
+        val p = lastPile
+        if (p < 0) return false
 
-        if (idxInTray == -1) return false
+        val trayIndex = tray.indexOfFirst { it.id == picked.id }
+        if (trayIndex == -1) return false
+        tray.removeAt(trayIndex)
 
-        val t = tray.removeAt(idxInTray)
-        board[lm.second] = t
-        lastMove = null
-        recomputeLocks()
+        val revealed = lastRevealed
+        if (revealed != null) {
+            val stack = hidden.getOrPut(p) { mutableListOf() }
+            stack.add(revealed)
+        }
 
+        board[p] = picked.copy(stackBelow = hidden[p]?.size ?: 0, locked = false)
+
+        lastPicked = null
+        lastPile = -1
+        lastRevealed = null
         return true
     }
 
     fun shuffle() {
-        val remainingTiles = board
-            .filterNotNull()
-            .map { it.copy(locked = false) }
-            .shuffled(Random(System.currentTimeMillis()))
+        val all = mutableListOf<Tile>()
+        board.forEach { if (it != null) all.add(it) }
+        hidden.values.forEach { all.addAll(it) }
+        all.shuffle(Random(System.currentTimeMillis()))
 
-        var i = 0
-
-        board.forEachIndexed { idx, t ->
-            if (t != null) {
-                board[idx] = remainingTiles[i++]
-            }
+        val oldSizes = MutableList(board.size) { idx ->
+            (if (board[idx] != null) 1 else 0) + (hidden[idx]?.size ?: 0)
         }
 
-        recomputeLocks()
+        hidden.clear()
+        var i = 0
+        for (p in oldSizes.indices) {
+            val size = oldSizes[p]
+            if (size <= 0) {
+                board[p] = null
+                continue
+            }
+            val stack = mutableListOf<Tile>()
+            repeat(size) { stack.add(all[i++].copy(pile = p)) }
+            val top = stack.removeAt(stack.lastIndex)
+            hidden[p] = stack
+            board[p] = top.copy(stackBelow = stack.size, locked = false)
+        }
     }
 
     fun findHint(): String? {
-        val boardCounts = board.filterNotNull().groupingBy { it.emoji }.eachCount()
+        val visibleCounts = board.filterNotNull().groupingBy { it.emoji }.eachCount()
         val trayCounts = tray.groupingBy { it.emoji }.eachCount()
-
-        for ((emoji, cnt) in boardCounts) {
+        for ((emoji, cnt) in visibleCounts) {
             val have = trayCounts[emoji] ?: 0
             if (cnt + have >= 3) return emoji
         }
-
         return null
     }
 }
