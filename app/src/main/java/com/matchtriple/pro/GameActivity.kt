@@ -179,6 +179,16 @@ class GameActivity : AppCompatActivity() {
     private fun onTileClick(idx: Int) {
         if (busy) return
 
+        // Ketuk pertama: buka kartu tertutup. Jangan sebut nama gambar.
+        if (!engine.isFaceUp(idx)) {
+            val opened = engine.reveal(idx) ?: return
+            vibrate(15)
+            speech.speak("Kartu dibuka")
+            adapter.notifyItemChanged(idx)
+            return
+        }
+
+        // Ketuk kedua: ambil kartu yang sudah terbuka.
         val tile = engine.pick(idx) ?: return
 
         busy = true
@@ -395,35 +405,32 @@ class GameActivity : AppCompatActivity() {
     private fun useHint() {
         if (busy || boosters[2] <= 0) return
 
-        val emoji = engine.findHint() ?: run {
-            speech.speak("Tidak ada hint. Coba shuffle.")
+        val idx = engine.hintReveal()
+        if (idx < 0) {
+            speech.speak("Tidak ada kartu tertutup. Coba shuffle.")
             return
         }
 
         boosters[2]--
         updateBoosters()
+        adapter.notifyItemChanged(idx)
+        speech.speak("Satu kartu dibuka")
 
-        val item = ThemeData.get(theme).firstOrNull { it.emoji == emoji }
-        speech.speak("Hint: cari ${item?.name ?: emoji}")
-
-        engine.board.forEachIndexed { idx, t ->
-            if (t != null && t.emoji == emoji && !t.locked) {
-                val vh = b.rvBoard.findViewHolderForAdapterPosition(idx) ?: return@forEachIndexed
-                val v = vh.itemView
-
-                v.animate()
-                    .scaleX(1.15f)
-                    .scaleY(1.15f)
-                    .setDuration(200)
-                    .withEndAction {
-                        v.animate()
-                            .scaleX(1f)
-                            .scaleY(1f)
-                            .setDuration(200)
-                            .start()
-                    }
-                    .start()
-            }
+        val vh = b.rvBoard.findViewHolderForAdapterPosition(idx)
+        if (vh != null) {
+            val v = vh.itemView
+            v.animate()
+                .scaleX(1.15f)
+                .scaleY(1.15f)
+                .setDuration(200)
+                .withEndAction {
+                    v.animate()
+                        .scaleX(1f)
+                        .scaleY(1f)
+                        .setDuration(200)
+                        .start()
+                }
+                .start()
         }
     }
 
