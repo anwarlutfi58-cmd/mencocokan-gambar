@@ -34,27 +34,37 @@ class GameActivity : AppCompatActivity() {
     private var busy = false
     private var timerRunning = false
     private var timeLeft = 0
+
     private val handler = Handler(Looper.getMainLooper())
+
     private val timerRunnable = object : Runnable {
         override fun run() {
             if (!timerRunning) return
+
             timeLeft--
             b.txtTimer.text = "⏱ ${timeLeft}s"
+
             if (timeLeft <= 0) {
                 timerRunning = false
-                gameOver()
-            } else handler.postDelayed(this, 1000)
+                gameOver("Waktu habis!")
+            } else {
+                handler.postDelayed(this, 1000)
+            }
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         b = ActivityGameBinding.inflate(layoutInflater)
         setContentView(b.root)
+
         prefs = getSharedPreferences("matchTriplePro", MODE_PRIVATE)
+
         speech = SpeechHelper(this)
         speech.enabled = prefs.getBoolean("audioOn", true)
         speech.volume = prefs.getFloat("volume", 0.8f)
+
         vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
 
         theme = intent.getStringExtra("theme") ?: "fruit"
@@ -67,14 +77,26 @@ class GameActivity : AppCompatActivity() {
     }
 
     private fun startLevel(lvl: Int) {
+        handler.removeCallbacks(timerRunnable)
+
         level = lvl
         config = LevelConfigs.forLevel(level)
         engine = GameEngine(theme, config)
         engine.generate()
-        boosters = intArrayOf(config.boosterUndo, config.boosterShuffle, config.boosterHint)
+
+        boosters = intArrayOf(
+            config.boosterUndo,
+            config.boosterShuffle,
+            config.boosterHint
+        )
 
         b.rvBoard.layoutManager = GridLayoutManager(this, config.cols)
-        adapter = TileAdapter(engine.board, config.cols) { idx -> onTileClick(idx) }
+        b.rvBoard.setHasFixedSize(true)
+
+        adapter = TileAdapter(engine.board, config.cols) { idx ->
+            onTileClick(idx)
+        }
+
         b.rvBoard.adapter = adapter
 
         rebuildTray()
@@ -93,7 +115,7 @@ class GameActivity : AppCompatActivity() {
             timerRunning = false
         }
 
-        speech.speak("Level $level dimulai. ${ThemeData.getName(theme)}")
+        speech.speak("Level $level dimulai. ${ThemeData.getName(theme)}. ${config.totalTiles} ubin.")
     }
 
     private fun applyTierColor() {
@@ -103,9 +125,11 @@ class GameActivity : AppCompatActivity() {
 
     private fun updateHUD() {
         b.txtScore.text = "⭐ Skor: $score"
-        b.txtLevel.text = "📊 Level: $level"
+        b.txtLevel.text = "📊 Lv $level • ${engine.remaining()} sisa"
+
         val total = config.totalTiles
         val done = total - engine.remaining()
+
         b.progressLevel.max = total
         b.progressLevel.progress = done
     }
@@ -114,6 +138,7 @@ class GameActivity : AppCompatActivity() {
         b.btnUndo.text = "↩️\nUndo x${boosters[0]}"
         b.btnShuffle.text = "🔀\nShuffle x${boosters[1]}"
         b.btnHint.text = "💡\nHint x${boosters[2]}"
+
         b.btnUndo.isEnabled = boosters[0] > 0
         b.btnShuffle.isEnabled = boosters[1] > 0
         b.btnHint.isEnabled = boosters[2] > 0
@@ -121,15 +146,19 @@ class GameActivity : AppCompatActivity() {
 
     private fun rebuildTray() {
         b.trayContainer.removeAllViews()
+
         for (i in 0 until config.traySlots) {
             val tv = TextView(this)
             val lp = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
             lp.marginEnd = 4
+
             tv.layoutParams = lp
             tv.gravity = Gravity.CENTER
-            tv.textSize = 22f
-            tv.setPadding(0, 14, 0, 14)
+            tv.textSize = 20f
+            tv.setPadding(0, 12, 0, 12)
+
             val tile = engine.tray.getOrNull(i)
+
             if (tile != null) {
                 tv.text = tile.emoji
                 tv.setBackgroundResource(R.drawable.bg_slot_filled)
@@ -137,45 +166,50 @@ class GameActivity : AppCompatActivity() {
                 tv.text = ""
                 tv.setBackgroundResource(R.drawable.bg_slot)
             }
+
             b.trayContainer.addView(tv)
         }
     }
 
     private fun onTileClick(idx: Int) {
         if (busy) return
+
         val tile = engine.pick(idx) ?: return
+
         busy = true
         vibrate(20)
         speech.speak(tile.name)
+
         adapter.notifyDataSetChanged()
         rebuildTray()
         updateHUD()
 
         handler.postDelayed({
-            val matched = engine.checkMatch()
-            if (matched != null) {
-                score += 30 * config.scoreMultiplier
-                vibrate(60)
-                speech.speak("Cocok! Skor ${score}")
-                updateHUD()
-                handler.postDelayed({
-                    if (engine.hasMatch()) {
-                        val m2 = engine.checkMatch()
-                        if (m2 != null) {
-                            score += 30 * config.scoreMultiplier
-                            updateHUD()
-                        }
-                    }
-                    adapter.notifyDataSetChanged()
-                    rebuildTray()
-                    busy = false
-                    afterMove()
-                }, 300)
-            } else {
-                busy = false
-                afterMove()
+            var matchedCount = 0
+
+            while (engine.hasMatch()) {
+                val matched = engine.checkMatch()
+
+                if (matched != null) {
+                    matchedCount++
+                    score += 30 * config.scoreMultiplier
+                } else {
+                    break
+                }
             }
-        }, 200)
+
+            if (matchedCount > 0) {
+                vibrate(60)
+                speech.speak("Cocok! Skor $score")
+            }
+
+            adapter.notifyDataSetChanged()
+            rebuildTray()
+            updateHUD()
+
+            busy = false
+            afterMove()
+        }, 160)
     }
 
     private fun afterMove() {
@@ -183,40 +217,71 @@ class GameActivity : AppCompatActivity() {
         adapter.notifyDataSetChanged()
         updateHUD()
 
-        if (engine.isWin()) { winLevel(); return }
-        if (engine.isLose()) { gameOver(); return }
+        if (engine.isWin()) {
+            winLevel()
+            return
+        }
+
+        if (engine.isLose()) {
+            gameOver("Kotak penampung penuh!")
+            return
+        }
     }
 
     private fun winLevel() {
+        timerRunning = false
+        handler.removeCallbacks(timerRunnable)
+
         val bonus = 100 * config.scoreMultiplier
         score += bonus
         saveHi()
+
         val view = layoutInflater.inflate(R.layout.dialog_result, null)
+
         view.findViewById<TextView>(R.id.resTitle).text = "🎉 Level Selesai!"
-        view.findViewById<TextView>(R.id.resText).text = "Skor: $score\nBonus +$bonus"
-        val dlg = AlertDialog.Builder(this).setView(view).setCancelable(false).create()
+        view.findViewById<TextView>(R.id.resText).text =
+            "Skor: $score\nBonus +$bonus\nLevel berikutnya lebih banyak tumpukan."
+
+        val dlg = AlertDialog.Builder(this)
+            .setView(view)
+            .setCancelable(false)
+            .create()
+
         view.findViewById<Button>(R.id.btnNextLevel).setOnClickListener {
             dlg.dismiss()
             startLevel(level + 1)
         }
+
         view.findViewById<Button>(R.id.btnBackMenu).setOnClickListener {
-            dlg.dismiss(); finish()
+            dlg.dismiss()
+            finish()
         }
+
         dlg.show()
         speech.speak("Selamat! Level selesai. Skor $score")
     }
 
-    private fun gameOver() {
+    private fun gameOver(reason: String) {
         timerRunning = false
+        handler.removeCallbacks(timerRunnable)
         saveHi()
+
         val view = layoutInflater.inflate(R.layout.dialog_result, null)
+
         view.findViewById<TextView>(R.id.resTitle).text = "😢 Game Over"
-        view.findViewById<TextView>(R.id.resText).text = "Kotak penampung penuh!\nSkor akhir: $score"
+        view.findViewById<TextView>(R.id.resText).text = "$reason\nSkor akhir: $score"
         view.findViewById<Button>(R.id.btnNextLevel).visibility = View.GONE
-        val dlg = AlertDialog.Builder(this).setView(view).setCancelable(false).create()
+
+        val dlg = AlertDialog.Builder(this)
+            .setView(view)
+            .setCancelable(false)
+            .create()
+
         view.findViewById<Button>(R.id.btnBackMenu).setOnClickListener {
-            dlg.dismiss(); finish()
+            dlg.dismiss()
+            finish()
         }
+
         dlg.show()
         vibrate(300)
         speech.speak("Game over. Skor akhir $score")
@@ -224,11 +289,15 @@ class GameActivity : AppCompatActivity() {
 
     private fun saveHi() {
         val hi = prefs.getInt("hiScore", 0)
-        if (score > hi) prefs.edit().putInt("hiScore", score).apply()
+
+        if (score > hi) {
+            prefs.edit().putInt("hiScore", score).apply()
+        }
     }
 
     private fun useUndo() {
         if (busy || boosters[0] <= 0) return
+
         if (engine.undo()) {
             boosters[0]--
             updateBoosters()
@@ -237,13 +306,17 @@ class GameActivity : AppCompatActivity() {
             updateHUD()
             vibrate(20)
             speech.speak("Undo berhasil")
-        } else speech.speak("Tidak bisa di-undo")
+        } else {
+            speech.speak("Tidak bisa di-undo")
+        }
     }
 
     private fun useShuffle() {
         if (busy || boosters[1] <= 0) return
+
         engine.shuffle()
         boosters[1]--
+
         updateBoosters()
         adapter.notifyDataSetChanged()
         vibrate(20)
@@ -252,37 +325,54 @@ class GameActivity : AppCompatActivity() {
 
     private fun useHint() {
         if (busy || boosters[2] <= 0) return
+
         val emoji = engine.findHint() ?: run {
             speech.speak("Tidak ada hint. Coba shuffle.")
             return
         }
+
         boosters[2]--
         updateBoosters()
+
         val item = ThemeData.get(theme).firstOrNull { it.emoji == emoji }
         speech.speak("Hint: cari ${item?.name ?: emoji}")
+
         engine.board.forEachIndexed { idx, t ->
             if (t != null && t.emoji == emoji && !t.locked) {
                 val vh = b.rvBoard.findViewHolderForAdapterPosition(idx) ?: return@forEachIndexed
                 val v = vh.itemView
-                v.animate().scaleX(1.15f).scaleY(1.15f).setDuration(200).withEndAction {
-                    v.animate().scaleX(1f).scaleY(1f).setDuration(200).start()
-                }.start()
+
+                v.animate()
+                    .scaleX(1.15f)
+                    .scaleY(1.15f)
+                    .setDuration(200)
+                    .withEndAction {
+                        v.animate()
+                            .scaleX(1f)
+                            .scaleY(1f)
+                            .setDuration(200)
+                            .start()
+                    }
+                    .start()
             }
         }
     }
 
     private fun showSettings() {
         val view = layoutInflater.inflate(R.layout.dialog_settings, null)
+
         val swAudio = view.findViewById<android.widget.Switch>(R.id.swAudio)
         val swDim = view.findViewById<android.widget.Switch>(R.id.swDim)
         val swTimer = view.findViewById<android.widget.Switch>(R.id.swTimer)
         val seek = view.findViewById<android.widget.SeekBar>(R.id.seekVolume)
+
         swAudio.isChecked = prefs.getBoolean("audioOn", true)
         swDim.isChecked = prefs.getBoolean("dim", false)
         swTimer.isChecked = prefs.getBoolean("timerOn", false)
         seek.progress = (prefs.getFloat("volume", 0.8f) * 100).toInt()
 
         val dlg = AlertDialog.Builder(this).setView(view).create()
+
         view.findViewById<Button>(R.id.btnContinueSettings).setOnClickListener {
             prefs.edit()
                 .putBoolean("audioOn", swAudio.isChecked)
@@ -290,20 +380,30 @@ class GameActivity : AppCompatActivity() {
                 .putBoolean("timerOn", swTimer.isChecked)
                 .putFloat("volume", seek.progress / 100f)
                 .apply()
+
             speech.enabled = swAudio.isChecked
             speech.volume = seek.progress / 100f
+
             dlg.dismiss()
         }
+
         view.findViewById<Button>(R.id.btnQuitSettings).setOnClickListener {
-            dlg.dismiss(); finish()
+            dlg.dismiss()
+            finish()
         }
+
         dlg.show()
     }
 
     private fun vibrate(ms: Long) {
         if (Build.VERSION.SDK_INT >= 26) {
-            vibrator.vibrate(VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE))
-        } else @Suppress("DEPRECATION") vibrator.vibrate(ms)
+            vibrator.vibrate(
+                VibrationEffect.createOneShot(ms, VibrationEffect.DEFAULT_AMPLITUDE)
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator.vibrate(ms)
+        }
     }
 
     override fun onDestroy() {
